@@ -11,11 +11,10 @@ export class HomeComponent {
   users: any;
 
   constructor(private http: HttpClient) {
-    this.getUser();
   }
 
   ngOnInit(): void {
-
+    this.getUser();
   }
 
   registerToggle() {
