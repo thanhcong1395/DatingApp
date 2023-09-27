@@ -34,7 +34,7 @@ namespace API.Controllers
 
             if (string.IsNullOrEmpty(userParams.Gender))
             {
-                userParams.Gender = currentUser.Gender == "male" ? "female" : "male";
+                userParams.Gender = currentUser.Gender == "male" ? "male" : "female";
             }
 
             var users = await this.userRepository.GetMemberAsync(userParams);

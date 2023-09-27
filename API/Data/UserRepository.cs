@@ -5,6 +5,7 @@ using API.Interfaces;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
+using SQLitePCL;
 
 namespace API.Data
 {
@@ -24,12 +25,19 @@ namespace API.Data
             var query = this.context.Users.AsQueryable();
 
             query = query.Where(e => e.UserName != userParams.CurrentUsername);
-            query = query.Where(e => e.Gender != userParams.Gender);
+            query = query.Where(e => e.Gender == userParams.Gender);
 
             var minDob = DateTime.Today.AddYears(-userParams.MaxAge - 1);
             var maxDob = DateTime.Today.AddYears(-userParams.MinAge);
 
             query = query.Where(e => e.DateOfBirth >= minDob && e.DateOfBirth <= maxDob);
+
+            query = userParams.OrderBy switch
+            {
+                "created" => query.OrderByDescending(e => e.Created),
+                _ => query.OrderByDescending(e => e.LastActive)
+            };
+
             return await PagedList<MemberDto>.CreateAsync(query.AsNoTracking().ProjectTo<MemberDto>(this.mapper.ConfigurationProvider), userParams.PageNumber, userParams.PageSize);
         }
 
