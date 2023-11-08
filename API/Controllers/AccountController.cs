@@ -5,6 +5,7 @@ using API.DTOs;
 using API.Entities;
 using API.Interfaces;
 using AutoMapper;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -13,13 +14,13 @@ namespace API.Controllers
 {
     public class AccountController : BaseApiController
     {
-        private readonly DataContext context;
+        private readonly UserManager<AppUser> userManager;
         private readonly ITokenService tokenService;
         private readonly IMapper mapper;
 
-        public AccountController(DataContext context, ITokenService tokenService, IMapper mapper)
+        public AccountController(UserManager<AppUser> userManager, ITokenService tokenService, IMapper mapper)
         {
-            this.context = context;
+            this.userManager = userManager;
             this.tokenService = tokenService;
             this.mapper = mapper;
         }
@@ -34,14 +35,11 @@ namespace API.Controllers
 
             var user = this.mapper.Map<AppUser>(registerDto);
 
-            using var hmac = new HMACSHA512();
-
             user.UserName = registerDto.UserName.ToLower();
-            user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDto.PassWord));
-            user.PasswordSalt = hmac.Key;
 
-            this.context.Users.Add(user);
-            await this.context.SaveChangesAsync();
+            var result = await this.userManager.CreateAsync(user, registerDto.PassWord);
+
+            if (result.Succeeded) return BadRequest(result.Errors);
 
             return new UserDto
             {
@@ -55,18 +53,13 @@ namespace API.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<UserDto>> Login(LoginDto loginDto)
         {
-            var user = await this.context.Users.Include(e => e.Photos).SingleOrDefaultAsync(x => x.UserName == loginDto.UserName);
+            var user = await this.userManager.Users.Include(e => e.Photos).SingleOrDefaultAsync(x => x.UserName == loginDto.UserName);
 
             if (user == null) return Unauthorized("invalid username");
 
-            using var hmac = new HMACSHA512(user.PasswordSalt);
+            var result = await this.userManager.CheckPasswordAsync(user, loginDto.PassWord);
 
-            var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(loginDto.PassWord));
-
-            for (int i = 0; i < computedHash.Length; i++)
-            {
-                if (computedHash[i] != user.PasswordHash[i]) return Unauthorized("invalid password");
-            }
+            if (!result) return Unauthorized("Invalid password");
 
             return new UserDto
             {
@@ -80,7 +73,7 @@ namespace API.Controllers
 
         private async Task<bool> UserExists(string userName)
         {
-            return await this.context.Users.AnyAsync(x => x.UserName == userName.ToLower());
+            return await this.userManager.Users.AnyAsync(x => x.UserName == userName.ToLower());
         }
     }
 }
