@@ -1,6 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-using API.Data;
 using API.DTOs;
 using API.Entities;
 using API.Interfaces;
@@ -8,7 +5,6 @@ using AutoMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace API.Controllers
 {
@@ -41,10 +37,14 @@ namespace API.Controllers
 
             if (result.Succeeded) return BadRequest(result.Errors);
 
+            var roleResult = await this.userManager.AddToRoleAsync(user, "Member");
+
+            if (!roleResult.Succeeded) return BadRequest(result.Errors);
+
             return new UserDto
             {
                 UserName = user.UserName,
-                Token = this.tokenService.CreateToken(user),
+                Token = await this.tokenService.CreateToken(user),
                 KnownsAs = user.KnownAs,
                 Gender = user.Gender,
             };
@@ -64,7 +64,7 @@ namespace API.Controllers
             return new UserDto
             {
                 UserName = user.UserName,
-                Token = this.tokenService.CreateToken(user),
+                Token = await this.tokenService.CreateToken(user),
                 PhotoUrl = user.Photos.FirstOrDefault(e => e.IsMain)?.Url,
                 KnownsAs = user.KnownAs,
                 Gender = user.Gender,
